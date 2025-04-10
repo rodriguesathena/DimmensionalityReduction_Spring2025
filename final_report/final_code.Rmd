@@ -1,0 +1,70 @@
+---
+title: "final_project"
+author: "Athena Rodrigues"
+output: html_document
+date: "2025-04-10"
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+setwd("C:/Users/athen/Documents/GitHub/DimmensionalityReduction_Spring2025/final_report")
+library(tidyverse)
+library(dplyr)
+library(psych)
+```
+
+```{r load dataset}
+df <- read_csv("anes_specialstudy_2020-2022_socialmedia_csv_20230705.csv", show_col_types = FALSE)
+```
+
+```{r clean dataset}
+#selecting variables
+data <- df %>%
+  select("caseid",
+         "profile_gender",
+         "profile_age",
+         "pid1d",
+         "pid2d",
+         "pid1r",
+         "pid2r",
+         "pidstr",
+         "pidlean",
+         "hp_you",
+         "gundiff",
+         "c_self",
+         "rr1",
+         "rr2",
+         "immpol",
+         "trustvote",
+         "con_fbi")
+```
+
+```{r party affiliation}
+pid_raw <- if ("pid1d" %in% names(df)) "pid1d" else "pid1r"
+
+# Step 2: Create master party affiliation variable
+data <- data %>%
+  mutate(
+    pid_base = case_when(
+      !!sym(pid_raw) == 1 ~ "Democrat",
+      !!sym(pid_raw) == 2 ~ "Republican",
+      !!sym(pid_raw) == 3 ~ "Independent",
+      !!sym(pid_raw) == 4 ~ "Other"
+    ),
+    
+    pid_type = case_when(
+      # Strong and not-strong partisans
+      pid_base == "Democrat" & pidstr == 1 ~ "Strong Democrat",
+      pid_base == "Democrat" & pidstr == 2 ~ "Not Strong Democrat",
+      pid_base == "Republican" & pidstr == 1 ~ "Strong Republican",
+      pid_base == "Republican" & pidstr == 2 ~ "Not Strong Republican",
+      
+      # Leaners from independents or others
+      pid_base %in% c("Independent", "Other") & pidlean == 1 ~ "Lean Republican",
+      pid_base %in% c("Independent", "Other") & pidlean == 2 ~ "Lean Democrat",
+      pid_base %in% c("Independent", "Other") & pidlean == 3 ~ "Pure Independent",
+      
+      # Catch unclassifiable
+      TRUE ~ "Missing"
+    )
+  )
+```
