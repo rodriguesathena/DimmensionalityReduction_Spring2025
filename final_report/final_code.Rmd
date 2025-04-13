@@ -10,61 +10,147 @@ setwd("C:/Users/athen/Documents/GitHub/DimmensionalityReduction_Spring2025/final
 library(tidyverse)
 library(dplyr)
 library(psych)
+library(ggplot2)
 ```
 
 ```{r load dataset}
 df <- read_csv("anes_specialstudy_2020-2022_socialmedia_csv_20230705.csv", show_col_types = FALSE)
 ```
 
-```{r clean dataset}
-#selecting variables
-data <- df %>%
+```{r party affiliation}
+party_processing <- df %>%
   select("caseid",
-         "profile_gender",
-         "profile_age",
          "pid1d",
-         "pid2d",
          "pid1r",
-         "pid2r",
          "pidstr",
-         "pidlean",
-         "hp_you",
+         "pidlean")
+party_processing <- party_processing %>%
+  mutate(
+    pid_raw = case_when(
+      !is.na(pid1d) & pid1d >= 0 ~ as.numeric(pid1d),  
+      !is.na(pid1r) & pid1r >= 0 ~ as.numeric(pid1r),  
+      TRUE ~ NA_real_  
+    ),
+      party = case_when(
+      pid_raw == 1 ~ "Democrat",
+      pid_raw == 2 ~ "Republican",
+      pid_raw == 3 ~ "Independent",
+      pid_raw == 4 ~ "Other",
+      TRUE ~ NA_character_  
+    ),
+    
+    type = case_when(
+      party == "Democrat" & pidstr == 1 ~ "Strong Democrat",
+      party == "Democrat" & pidstr == 2 ~ "Not Strong Democrat",
+      party == "Republican" & pidstr == 1 ~ "Strong Republican",
+      party == "Republican" & pidstr == 2 ~ "Not Strong Republican",
+      party == "Independent" & pidlean == 1 ~ "Lean Republican",
+      party == "Independent" & pidlean == 2 ~ "Lean Democrat",
+      party == "Independent" & pidlean == 3 ~ "Pure Independent",
+      TRUE ~ "No Answer"
+    )
+  )
+
+# data %>%
+#   count(party)
+# data %>%
+#   count(type)
+
+parties <- party_processing %>%
+  select("caseid", "party", "type")
+parties <- parties %>%
+  filter(party %in% c("Democrat", "Republican", "Independent") & type != "No Answer")
+
+```
+
+```{r set and explore EFA variables}
+efa_variables <- c("hp_you",
          "gundiff",
          "c_self",
          "rr1",
          "rr2",
          "immpol",
-         "trustvote",
-         "con_fbi")
+         "trustvote")
+efa_variables <- df %>%
+  select(all_of(efa_variables)) %>%
+  drop_na()
 ```
 
-```{r party affiliation}
-pid_raw <- if ("pid1d" %in% names(df)) "pid1d" else "pid1r"
+```{r check suitability}
+cor_matrix <- cor(efa_variables)
+cortest.bartlett(cor_matrix, n = nrow(efa_variables))
+scree(cor_matrix, factors = FALSE)
+KMO(efa_variables)
+```
 
-# Step 2: Create master party affiliation variable
-data <- data %>%
-  mutate(
-    pid_base = case_when(
-      !!sym(pid_raw) == 1 ~ "Democrat",
-      !!sym(pid_raw) == 2 ~ "Republican",
-      !!sym(pid_raw) == 3 ~ "Independent",
-      !!sym(pid_raw) == 4 ~ "Other"
-    ),
-    
-    pid_type = case_when(
-      # Strong and not-strong partisans
-      pid_base == "Democrat" & pidstr == 1 ~ "Strong Democrat",
-      pid_base == "Democrat" & pidstr == 2 ~ "Not Strong Democrat",
-      pid_base == "Republican" & pidstr == 1 ~ "Strong Republican",
-      pid_base == "Republican" & pidstr == 2 ~ "Not Strong Republican",
-      
-      # Leaners from independents or others
-      pid_base %in% c("Independent", "Other") & pidlean == 1 ~ "Lean Republican",
-      pid_base %in% c("Independent", "Other") & pidlean == 2 ~ "Lean Democrat",
-      pid_base %in% c("Independent", "Other") & pidlean == 3 ~ "Pure Independent",
-      
-      # Catch unclassifiable
-      TRUE ~ "Missing"
-    )
+```{r EFA}
+
+results <- fa(efa_variables, nfactors = 2,
+              rotate = "oblimin",
+              fm = "pa")
+print(results)
+efa_scores <- fa(efa_variables, nfactors = 2, rotate = "oblimin", fm = "pa", scores = "regression")$scores
+
+efa_scores <- as.data.frame(efa_scores)
+efa_scores$caseid <- df$caseid
+party_and_efa <- parties %>%
+  left_join(efa_scores, by = "caseid")
+```
+
+```{r visualising}
+party_colors <- c(
+  "Strong Democrat" = "#2166ac",         
+  "Not Strong Democrat" = "#67a9cf",     
+  "Lean Democrat" = "#d1e5f0",           
+  "Pure Independent" = "#f7f7f7",        
+  "Lean Republican" = "#fddbc7",         
+  "Not Strong Republican" = "#ef8a62",  
+  "Strong Republican" = "#b2182b"       
+)
+
+#Factor 1: Polarized, Party-Aligned Issues
+ggplot(party_and_efa, aes(x = type, y = PA1, fill = type)) +
+  geom_boxplot() +
+  labs(
+    title = "Partisan Policy Alignment (Factor 1)",
+    y = "Score on Polarized Issues",
+    x = NULL
+  ) +
+  scale_fill_manual(values = party_colors) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "bottom"
   )
+
+# Factor 2: Diverse, Less Party-Tied Issues
+ggplot(party_and_efa, aes(x = type, y = PA2, fill = type)) +
+  geom_boxplot() +
+  labs(
+    title = "Issue-Based Variation (Factor 2)",
+    y = "Score on Individual-Driven Issues",
+    x = NULL
+  ) +
+  scale_fill_manual(values = party_colors) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "bottom"
+  )
+# Individual positions in Factor Space 1 vs. 2
+ggplot(party_and_efa, aes(x = PA1, y = PA2, color = type)) +
+  geom_jitter(alpha = 0.4, width = 0.2, height = 0.2) +
+  labs(
+    title = "Political Issue Space: Factor 1 vs Factor 2",
+    x = "Polarized, Party-Aligned Issues (Factor 1)",
+    y = "Individual-Driven Issues (Factor 2)",
+    color = "Party Type"
+  ) +s
+  scale_color_manual(values = party_colors) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+
+
 ```
