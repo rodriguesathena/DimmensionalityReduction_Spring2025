@@ -25,20 +25,16 @@ party_processing <- df %>%
          "pidstr",
          "pidlean")
 party_processing <- party_processing %>%
-  mutate(
-    pid_raw = case_when(
+  mutate(pid_raw = case_when(
       !is.na(pid1d) & pid1d >= 0 ~ as.numeric(pid1d),  
       !is.na(pid1r) & pid1r >= 0 ~ as.numeric(pid1r),  
-      TRUE ~ NA_real_  
-    ),
+      TRUE ~ NA_real_),
       party = case_when(
       pid_raw == 1 ~ "Democrat",
       pid_raw == 2 ~ "Republican",
       pid_raw == 3 ~ "Independent",
       pid_raw == 4 ~ "Other",
-      TRUE ~ NA_character_  
-    ),
-    
+      TRUE ~ NA_character_),
     type = case_when(
       party == "Democrat" & pidstr == 1 ~ "Strong Democrat",
       party == "Democrat" & pidstr == 2 ~ "Not Strong Democrat",
@@ -47,9 +43,7 @@ party_processing <- party_processing %>%
       party == "Independent" & pidlean == 1 ~ "Lean Republican",
       party == "Independent" & pidlean == 2 ~ "Lean Democrat",
       party == "Independent" & pidlean == 3 ~ "Pure Independent",
-      TRUE ~ "No Answer"
-    )
-  )
+      TRUE ~ "No Answer"))
 
 # data %>%
 #   count(party)
@@ -89,6 +83,7 @@ results <- fa(efa_variables, nfactors = 2,
               rotate = "oblimin",
               fm = "pa")
 print(results)
+
 efa_scores <- fa(efa_variables, nfactors = 2, rotate = "oblimin", fm = "pa", scores = "regression")$scores
 
 efa_scores <- as.data.frame(efa_scores)
@@ -105,52 +100,65 @@ party_colors <- c(
   "Pure Independent" = "#f7f7f7",        
   "Lean Republican" = "#fddbc7",         
   "Not Strong Republican" = "#ef8a62",  
-  "Strong Republican" = "#b2182b"       
-)
+  "Strong Republican" = "#b2182b")
 
-#Factor 1: Polarized, Party-Aligned Issues
+#Factor 1
 ggplot(party_and_efa, aes(x = type, y = PA1, fill = type)) +
   geom_boxplot() +
   labs(
     title = "Partisan Policy Alignment (Factor 1)",
-    y = "Score on Polarized Issues",
-    x = NULL
-  ) +
+    y = "Polarized Issues",
+    x = NULL) +
   scale_fill_manual(values = party_colors) +
   theme_minimal(base_size = 13) +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
-    legend.position = "bottom"
-  )
+    legend.position = "bottom",
+    legend.key.size = unit(0.8, "lines"), 
+    legend.text = element_text(size = 10), 
+    legend.spacing.x = unit(0.5, "cm"),   
+    legend.margin = margin(t = 0, b = 0))
 
-# Factor 2: Diverse, Less Party-Tied Issues
+
+#Factor 2
 ggplot(party_and_efa, aes(x = type, y = PA2, fill = type)) +
   geom_boxplot() +
   labs(
     title = "Issue-Based Variation (Factor 2)",
-    y = "Score on Individual-Driven Issues",
-    x = NULL
-  ) +
+    y = "Individual-Driven Issues",
+    x = NULL) +
   scale_fill_manual(values = party_colors) +
   theme_minimal(base_size = 13) +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
-    legend.position = "bottom"
-  )
-# Individual positions in Factor Space 1 vs. 2
-ggplot(party_and_efa, aes(x = PA1, y = PA2, color = type)) +
-  geom_jitter(alpha = 0.4, width = 0.2, height = 0.2) +
+    legend.position = "bottom",
+    legend.key.size = unit(0.8, "lines"), 
+    legend.text = element_text(size = 10), 
+    legend.spacing.x = unit(0.5, "cm"),   
+    legend.margin = margin(t = 0, b = 0))
+
+#Individual positions 1 vs. 2
+ggplot(party_and_efa, aes(x = PA1, y = PA2)) +
+  geom_jitter(aes(fill = type),
+              shape = 21,
+              color = "black",
+              stroke = 0.4,
+              alpha = 0.7,
+              width = 0.2,
+              height = 0.2) +
   labs(
     title = "Political Issue Space: Factor 1 vs Factor 2",
     x = "Polarized, Party-Aligned Issues (Factor 1)",
     y = "Individual-Driven Issues (Factor 2)",
-    color = "Party Type"
-  ) +s
-  scale_color_manual(values = party_colors) +
+    fill = "Party Type") +
+  scale_fill_manual(values = party_colors) +
   theme_minimal(base_size = 13) +
-  theme(legend.position = "bottom")
-
-
+  theme(  theme(
+    legend.position = "bottom",
+    legend.key.size = unit(0.8, "lines"), 
+    legend.text = element_text(size = 10), 
+    legend.spacing.x = unit(0.5, "cm"),   
+    legend.margin = margin(t = 0, b = 0)  ))
 ```
