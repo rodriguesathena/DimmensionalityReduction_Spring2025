@@ -6,7 +6,7 @@ date: "2025-04-10"
 ---
 
 ```{r setup, include=FALSE, warning=FALSE}
-setwd("C:/Users/athen/Documents/GitHub/DimmensionalityReduction_Spring2025/final_report")
+setwd("C:/Users/athen/Documents/GitHub/DimmensionalityReduction_Spring2025/final_report/code_report")
 library(tidyverse)
 library(dplyr)
 library(psych)
@@ -14,7 +14,7 @@ library(ggplot2)
 ```
 
 ```{r load dataset}
-df <- read_csv("anes_specialstudy_2020-2022_socialmedia_csv_20230705.csv", show_col_types = FALSE)
+df <- read_csv("data.csv", show_col_types = FALSE)
 ```
 
 ```{r party affiliation}
